@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isFullSuite, openWorkspace, selectPlan } from './commands/select.ts';
 import { CONFIG_FILE, ConfigError, loadConfig } from './config.ts';
+import { createDebug, debugEnabled } from './debug.ts';
+import { explainPlan } from './explain.ts';
 import { repoRoot, resolveCommit } from './git.ts';
 import { type PlanFile, readPlanFile, serializePlan } from './plan-file.ts';
 import { executionGroups } from './plan.ts';
@@ -16,6 +18,7 @@ const HELP = `testscope <command> [options]
 Commands:
   select   Compute a plan for the current change
   run      Compute (or load with --plan) a plan and execute it
+  explain [SPEC]  Explain the plan, or why SPEC is or is not selected
   check-config
 
 Options:
@@ -26,6 +29,7 @@ Options:
   --out PATH           Write the plan JSON to PATH
   --plan PATH          (run) execute a saved plan
   --require-trimmed    Never select the full suite (downgrade to smoke)
+  --debug              Log each phase to stderr (also TESTSCOPE_DEBUG=1)
   -- <flags>           (run) execution flags passed to the runner, e.g. -- --repeat-each=3
 `;
 
@@ -37,6 +41,7 @@ const OPTIONS = {
   out: { type: 'string' },
   plan: { type: 'string' },
   'require-trimmed': { type: 'boolean' },
+  debug: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -73,7 +78,11 @@ export async function main(
   }
   const sep = rest.indexOf('--');
   const extraArgs = sep < 0 ? [] : rest.slice(sep + 1);
-  const { values } = parseArgs({ args: sep < 0 ? rest : rest.slice(0, sep), options: OPTIONS });
+  const { values, positionals } = parseArgs({
+    args: sep < 0 ? rest : rest.slice(0, sep),
+    options: OPTIONS,
+    allowPositionals: true,
+  });
   if (values.help) {
     stdout.write(HELP);
     return 0;
@@ -84,7 +93,7 @@ export async function main(
       stdout.write('testscope config OK\n');
       return 0;
     }
-    if (cmd !== 'select' && cmd !== 'run') {
+    if (cmd !== 'select' && cmd !== 'run' && cmd !== 'explain') {
       process.stderr.write(`testscope ${cmd}: unknown or not yet implemented command\n`);
       return 2;
     }
@@ -104,9 +113,16 @@ export async function main(
           head: values.head,
           requireTrimmed: values['require-trimmed'],
           runner,
+          debug: createDebug(debugEnabled(values.debug)),
         });
     if (values['require-trimmed'] && isFullSuite(plan))
       throw new Error('require-trimmed: refusing a full-suite selection');
+    if (cmd === 'explain') {
+      stdout.write(
+        values.json ? serializePlan(plan) : explainPlan(plan, ws.manifest, positionals[0]),
+      );
+      return 0;
+    }
     await emit(plan, values, stdout);
     if (cmd === 'select') return 0;
     const groups = executionGroups(plan, config.smoke.canary);
