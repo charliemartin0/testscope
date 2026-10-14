@@ -9,6 +9,8 @@ import { CONFIG_FILE, ConfigError, loadConfig } from './config.ts';
 import { createDebug, debugEnabled } from './debug.ts';
 import { explainPlan } from './explain.ts';
 import { repoRoot, resolveCommit } from './git.ts';
+import { buildRequest } from './judge.ts';
+import { createJudge, keyEnvFor } from './judges/index.ts';
 import { syncManifest } from './manifest.ts';
 import { type PlanFile, readPlanFile, serializePlan } from './plan-file.ts';
 import { executionGroups } from './plan.ts';
@@ -116,6 +118,23 @@ export async function main(
       workers: config.workers,
     });
     validateExtraArgs(extraArgs);
+    const judge = createJudge(config.judge, ws.root);
+    const keyEnv = keyEnvFor(config.judge);
+    const judgeFn = judge
+      ? (changes: { path: string }[], patch: string) =>
+          judge.score(
+            buildRequest(
+              ws.manifest,
+              changes.map((c) => c.path),
+              patch,
+              {
+                model: config.judge.model,
+                secret: keyEnv ? process.env[keyEnv] : undefined,
+              },
+            ),
+            { timeoutMs: config.judge.timeoutMs },
+          )
+      : undefined;
     const plan = values.plan
       ? await readPlanFile(values.plan, await resolveCommit(values.head, ws.repoRoot), ws.manifest)
       : await selectPlan(ws, {
@@ -123,6 +142,7 @@ export async function main(
           head: values.head,
           requireTrimmed: values['require-trimmed'],
           runner,
+          judge: judgeFn,
           debug: createDebug(debugEnabled(values.debug)),
         });
     if (values['require-trimmed'] && isFullSuite(plan))

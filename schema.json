@@ -194,6 +194,10 @@
         "cache": {
           "type": ["boolean", "string"],
           "default": true
+        },
+        "preset": {
+          "enum": ["generic", "jev"],
+          "description": "HTTP contract: generic testscope JSON, or the Jev noul-question API (url, model and apiKeyEnv get preset defaults)."
         }
       },
       "allOf": [
@@ -202,6 +206,11 @@
             "properties": {
               "type": {
                 "const": "http"
+              },
+              "preset": {
+                "not": {
+                  "const": "jev"
+                }
               }
             },
             "required": ["type"]
