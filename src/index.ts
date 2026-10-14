@@ -40,4 +40,14 @@ export {
   syncManifest,
 } from './manifest.ts';
 export { buildRequest, checkScores, JUDGE_ERRORS, JudgeError, judgeErrorCode } from './judge.ts';
-export { CommandJudge, createJudge, GENERIC, HttpJudge, PRESETS } from './judges/index.ts';
+export {
+  CACHE_VERSION,
+  CachedJudge,
+  cacheKey,
+  CommandJudge,
+  createJudge,
+  GENERIC,
+  HttpJudge,
+  keyEnvFor,
+  PRESETS,
+} from './judges/index.ts';

@@ -20,6 +20,7 @@ export const JUDGE_ERRORS = [
   'judge-invalid-answer',
   'judge-missing-api-key',
   'judge-command-error',
+  'judge-cache-miss',
 ] as const;
 
 export class JudgeError extends Error {
