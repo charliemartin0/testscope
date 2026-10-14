@@ -1,41 +1,127 @@
 #!/usr/bin/env node
-import { ConfigError, loadConfig } from './config.ts';
+import { realpathSync } from 'node:fs';
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+import { isFullSuite, openWorkspace, selectPlan } from './commands/select.ts';
+import { CONFIG_FILE, ConfigError, loadConfig } from './config.ts';
+import { repoRoot, resolveCommit } from './git.ts';
+import { type PlanFile, readPlanFile, serializePlan } from './plan-file.ts';
+import { executionGroups } from './plan.ts';
+import { PlaywrightRunner, validateExtraArgs } from './runners/playwright.ts';
 
 const HELP = `testscope <command> [options]
 
 Commands:
-  check-config [--config PATH]   Validate testscope.config.json
-  select | run | manifest | evaluate | explain | init   (not implemented yet)
+  select   Compute a plan for the current change
+  run      Compute (or load with --plan) a plan and execute it
+  check-config
+
+Options:
+  --config PATH        Config file (default ${CONFIG_FILE})
+  --base REF           Base ref (default origin/main)
+  --head REF           Head ref (default HEAD)
+  --json               Print the plan as JSON
+  --out PATH           Write the plan JSON to PATH
+  --plan PATH          (run) execute a saved plan
+  --require-trimmed    Never select the full suite (downgrade to smoke)
+  -- <flags>           (run) execution flags passed to the runner, e.g. -- --repeat-each=3
 `;
 
-export async function main(argv = process.argv.slice(2)): Promise<number> {
-  const [cmd, ...rest] = argv;
-  if (!cmd || cmd === '--help' || cmd === '-h') {
-    process.stdout.write(HELP);
-    return 0;
-  }
-  if (cmd === 'check-config') {
-    const i = rest.indexOf('--config');
-    try {
-      await loadConfig(i >= 0 ? rest[i + 1] : undefined);
-      process.stdout.write('testscope config OK\n');
-      return 0;
-    } catch (e) {
-      if (e instanceof ConfigError) {
-        process.stderr.write(`${e.message}\n`);
-        return 1;
-      }
-      throw e;
-    }
-  }
-  if (['select', 'run', 'manifest', 'evaluate', 'explain', 'init'].includes(cmd)) {
-    process.stderr.write(`testscope ${cmd}: not implemented yet\n`);
-    return 2;
-  }
-  process.stderr.write(HELP);
-  return 1;
+const OPTIONS = {
+  config: { type: 'string', default: CONFIG_FILE },
+  base: { type: 'string', default: 'origin/main' },
+  head: { type: 'string', default: 'HEAD' },
+  json: { type: 'boolean' },
+  out: { type: 'string' },
+  plan: { type: 'string' },
+  'require-trimmed': { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+} as const;
+
+export function summary(plan: PlanFile) {
+  const why = plan.fallbackReason ? ` [${plan.fallbackReason}]` : '';
+  return `testscope: ${plan.selected.length}/${plan.total} specs (${plan.mode}${plan.smokeOnly ? ', smoke only' : ''})${why}; groups=${plan.groups.join(',')}\n`;
 }
 
-main().then((code) => {
-  process.exitCode = code;
-});
+export interface Out {
+  write(s: string): unknown;
+}
+
+async function emit(plan: PlanFile, values: { json?: boolean; out?: string }, stdout: Out) {
+  if (values.out) {
+    await mkdir(path.dirname(path.resolve(values.out)), { recursive: true });
+    await writeFile(values.out, serializePlan(plan), { mode: 0o600 });
+  }
+  stdout.write(values.json ? serializePlan(plan) : summary(plan));
+  if (process.env.GITHUB_OUTPUT)
+    await appendFile(
+      process.env.GITHUB_OUTPUT,
+      `mode=${plan.mode}\nselected_count=${plan.selected.length}\ntotal=${plan.total}\ngroups=${plan.groups.join(',')}\n`,
+    );
+}
+
+export async function main(
+  argv = process.argv.slice(2),
+  stdout: Out = process.stdout,
+): Promise<number> {
+  const [cmd, ...rest] = argv;
+  if (!cmd || cmd === '--help' || cmd === '-h') {
+    stdout.write(HELP);
+    return 0;
+  }
+  const sep = rest.indexOf('--');
+  const extraArgs = sep < 0 ? [] : rest.slice(sep + 1);
+  const { values } = parseArgs({ args: sep < 0 ? rest : rest.slice(0, sep), options: OPTIONS });
+  if (values.help) {
+    stdout.write(HELP);
+    return 0;
+  }
+  try {
+    const config = await loadConfig(values.config);
+    if (cmd === 'check-config') {
+      stdout.write('testscope config OK\n');
+      return 0;
+    }
+    if (cmd !== 'select' && cmd !== 'run') {
+      process.stderr.write(`testscope ${cmd}: unknown or not yet implemented command\n`);
+      return 2;
+    }
+    const configDir = path.dirname(path.resolve(values.config));
+    const ws = await openWorkspace(config, configDir, await repoRoot(configDir));
+    const runner = new PlaywrightRunner({
+      root: ws.root,
+      runner: config.runner,
+      manifest: ws.manifest,
+      workers: config.workers,
+    });
+    validateExtraArgs(extraArgs);
+    const plan = values.plan
+      ? await readPlanFile(values.plan, await resolveCommit(values.head, ws.repoRoot), ws.manifest)
+      : await selectPlan(ws, {
+          base: values.base,
+          head: values.head,
+          requireTrimmed: values['require-trimmed'],
+          runner,
+        });
+    if (values['require-trimmed'] && isFullSuite(plan))
+      throw new Error('require-trimmed: refusing a full-suite selection');
+    await emit(plan, values, stdout);
+    if (cmd === 'select') return 0;
+    const groups = executionGroups(plan, config.smoke.canary);
+    if (!groups.length) return 0;
+    return await runner.run(groups, { workers: config.workers, extraArgs });
+  } catch (e) {
+    process.stderr.write(
+      `${e instanceof ConfigError ? e.message : `testscope: ${(e as Error).message}`}\n`,
+    );
+    return 1;
+  }
+}
+
+const invoked = process.argv[1] ? realpathSync(process.argv[1]) : '';
+if (invoked === fileURLToPath(import.meta.url))
+  main().then((code) => {
+    process.exitCode = code;
+  });

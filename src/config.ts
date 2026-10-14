@@ -15,7 +15,7 @@ export const DEFAULT_SHARED = [
 
 export const DEFAULTS: TestscopeConfig = {
   root: '.',
-  runner: { type: 'playwright' },
+  runner: { type: 'playwright', onlyChanged: true },
   manifest: { path: 'testscope.manifest.json' },
   smoke: { specs: [] },
   shared: DEFAULT_SHARED,
@@ -78,7 +78,12 @@ export function resolveConfig(input: unknown): TestscopeConfig {
   const runner = c.runner ?? {};
   if (!isObj(runner)) issues.push('runner must be an object');
   else {
-    keys(runner, ['type', 'projects', 'projectsEnv', 'smokeGrep', 'outputDir'], 'runner', issues);
+    keys(
+      runner,
+      ['type', 'projects', 'projectsEnv', 'smokeGrep', 'outputDir', 'onlyChanged'],
+      'runner',
+      issues,
+    );
     if (runner.type !== undefined && runner.type !== 'playwright')
       issues.push('runner.type must be "playwright"');
     if (runner.projects !== undefined && !isStrArr(runner.projects))
@@ -88,6 +93,8 @@ export function resolveConfig(input: unknown): TestscopeConfig {
         issues.push(`runner.${k} must be a string`);
     if (runner.projectsEnv !== undefined && !/^[A-Z_][A-Z0-9_]*$/i.test(String(runner.projectsEnv)))
       issues.push('runner.projectsEnv must be an environment variable name');
+    if (runner.onlyChanged !== undefined && typeof runner.onlyChanged !== 'boolean')
+      issues.push('runner.onlyChanged must be a boolean');
     if (runner.outputDir !== undefined) relPath(runner.outputDir, 'runner.outputDir', issues);
   }
 
