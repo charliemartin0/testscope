@@ -1,5 +1,6 @@
 import type { Judge } from '../judge.ts';
 import type { JudgeConfig } from '../types.ts';
+import { CachedJudge, cacheDir, cacheMode } from './cache.ts';
 import { CommandJudge } from './command.ts';
 import { HttpJudge } from './http.ts';
 import { PRESETS } from './presets.ts';
@@ -15,6 +16,12 @@ export function createJudge(
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
 ): Judge | undefined {
+  const judge = createRawJudge(cfg, cwd, env);
+  const dir = judge && cacheDir(cfg.cache, cwd);
+  return judge && dir ? new CachedJudge(judge, dir, cacheMode(env)) : judge;
+}
+
+function createRawJudge(cfg: JudgeConfig, cwd: string, env: NodeJS.ProcessEnv): Judge | undefined {
   if (cfg.type === 'none') return undefined;
   if (cfg.type === 'command') return new CommandJudge(cfg.command as string, cwd);
   const keyEnv = keyEnvFor(cfg);
@@ -26,5 +33,7 @@ export function createJudge(
   });
 }
 
-export { CommandJudge, HttpJudge, PRESETS };
+export { CachedJudge, CommandJudge, HttpJudge, PRESETS };
+export { cacheDir, cacheKey, cacheMode, canonical, CACHE_VERSION } from './cache.ts';
+export type { CacheMode } from './cache.ts';
 export { GENERIC } from './http.ts';
