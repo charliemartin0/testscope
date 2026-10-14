@@ -16,7 +16,14 @@ export const DEFAULT_SHARED = [
 export const DEFAULTS: TestscopeConfig = {
   root: '.',
   runner: { type: 'playwright', onlyChanged: true },
-  manifest: { path: 'testscope.manifest.json' },
+  manifest: {
+    path: 'testscope.manifest.json',
+    specs: ['**/*.spec.{ts,tsx,js,mjs}'],
+    routePatterns: ['\\.goto\\(\\s*[\'"`]([^\'"`$]+)'],
+    titlePattern: 'describe(?:\\.\\w+)*\\(\\s*[\'"`]([^\'"`]+)',
+    smokeTag: '@smoke',
+    sourceRules: [],
+  },
   smoke: { specs: [] },
   shared: DEFAULT_SHARED,
   ignore: [],
@@ -101,8 +108,37 @@ export function resolveConfig(input: unknown): TestscopeConfig {
   const manifest = c.manifest ?? {};
   if (!isObj(manifest)) issues.push('manifest must be an object');
   else {
-    keys(manifest, ['path'], 'manifest', issues);
+    keys(
+      manifest,
+      ['path', 'specs', 'routePatterns', 'titlePattern', 'smokeTag', 'groupPattern', 'sourceRules'],
+      'manifest',
+      issues,
+    );
     if (manifest.path !== undefined) relPath(manifest.path, 'manifest.path', issues);
+    for (const k of ['specs', 'routePatterns'])
+      if (manifest[k] !== undefined && !isStrArr(manifest[k]))
+        issues.push(`manifest.${k} must be an array of strings`);
+    for (const k of ['titlePattern', 'smokeTag', 'groupPattern'])
+      if (manifest[k] !== undefined && typeof manifest[k] !== 'string')
+        issues.push(`manifest.${k} must be a string`);
+    for (const k of ['routePatterns', 'titlePattern', 'groupPattern']) {
+      const v = manifest[k];
+      for (const re of isStrArr(v) ? v : typeof v === 'string' ? [v] : [])
+        try {
+          new RegExp(re);
+        } catch {
+          issues.push(`manifest.${k} contains an invalid regular expression`);
+        }
+    }
+    const rules = manifest.sourceRules;
+    if (
+      rules !== undefined &&
+      !(
+        Array.isArray(rules) &&
+        rules.every((r) => isObj(r) && typeof r.match === 'string' && isStrArr(r.sources))
+      )
+    )
+      issues.push('manifest.sourceRules must be an array of { match: string, sources: string[] }');
   }
 
   const smoke = c.smoke ?? {};

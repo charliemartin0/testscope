@@ -33,10 +33,26 @@ export interface PolicyConfig {
   maxSpecs?: number;
 }
 
+export interface ManifestConfig {
+  path: string;
+  /** Globs (relative to root) of spec files. */
+  specs: string[];
+  /** Regexes whose first capture group is a route visited by the spec. */
+  routePatterns: string[];
+  /** Regex whose first capture group is the spec title. */
+  titlePattern: string;
+  /** Tag that marks smoke tests. */
+  smokeTag: string;
+  /** Regex applied to the spec path; first capture group becomes the group. */
+  groupPattern?: string;
+  /** Derive sources from the spec path: `match` is a regex, `$1`… in sources are its captures. */
+  sourceRules: { match: string; sources: string[] }[];
+}
+
 export interface TestscopeConfig {
   root: string;
   runner: RunnerConfig;
-  manifest: { path: string };
+  manifest: ManifestConfig;
   smoke: { specs: string[]; canary?: string };
   shared: string[];
   ignore: string[];

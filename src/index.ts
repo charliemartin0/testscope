@@ -32,3 +32,10 @@ export type { SelectOptions, Workspace } from './commands/select.ts';
 export { describeFallback, describeReason, explainPlan } from './explain.ts';
 export { createDebug, debugEnabled } from './debug.ts';
 export type { Debug } from './debug.ts';
+export {
+  describeSpec,
+  formatManifest,
+  generateManifest,
+  listFiles,
+  syncManifest,
+} from './manifest.ts';
