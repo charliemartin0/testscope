@@ -1,0 +1,26 @@
+{
+  "name": "@charliemartin0/testscope",
+  "version": "0.0.0",
+  "description": "Manifest-first, budget-capped test selection for pull requests.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "bin": { "testscope": "./dist/cli.js" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./schema.json": "./schema.json"
+  },
+  "files": ["dist", "schema.json"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "test": "node --test --experimental-strip-types --no-warnings 'test/**/*.test.ts'"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}

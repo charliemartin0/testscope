@@ -1,0 +1,20 @@
+{
+  "$schema": "./schema.json",
+  "root": "web",
+  "runner": { "type": "playwright", "projectsEnv": "E2E_PROJECTS", "smokeGrep": "@smoke" },
+  "manifest": { "path": "e2e/spec-manifest.json" },
+  "smoke": { "specs": ["e2e/shell/home.spec.ts"], "canary": "e2e/shell/canary.spec.ts" },
+  "extraDiffRoots": ["api"],
+  "judge": {
+    "type": "http",
+    "url": "https://judge.example.com/v1/score",
+    "apiKeyEnv": "JUDGE_API_KEY"
+  },
+  "policy": {
+    "onJudgeError": "smoke",
+    "onAllSelected": "smoke",
+    "onUnmapped": "smoke",
+    "maxSpecs": 40
+  },
+  "workers": 2
+}
