@@ -29,3 +29,6 @@ export type { PlanFile } from './plan-file.ts';
 export { buildInvocations, PlaywrightRunner, reportSpecs } from './runners/playwright.ts';
 export { isFullSuite, openWorkspace, selectPlan } from './commands/select.ts';
 export type { SelectOptions, Workspace } from './commands/select.ts';
+export { describeFallback, describeReason, explainPlan } from './explain.ts';
+export { createDebug, debugEnabled } from './debug.ts';
+export type { Debug } from './debug.ts';
