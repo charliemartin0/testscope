@@ -13,3 +13,14 @@ export { buildPlan, executionGroups, PolicyError, scopePath, smokeSet } from './
 export type { ExecutionGroup, PlanInput } from './plan.ts';
 export type { Judge, JudgeRequest } from './judge.ts';
 export type { Runner } from './runner.ts';
+export {
+  git,
+  GitError,
+  isShallow,
+  mergeBase,
+  readDiff,
+  repoRoot,
+  resolveCommit,
+  workingTreeChanges,
+} from './git.ts';
+export type { DiffResult, ReadDiffOptions } from './git.ts';
