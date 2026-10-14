@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Debug } from '../debug.ts';
 import { readDiff } from '../git.ts';
+import { judgeErrorCode } from '../judge.ts';
 import { type PlanFile, toPlanFile } from '../plan-file.ts';
 import { buildPlan } from '../plan.ts';
 import type { Runner } from '../runner.ts';
@@ -93,9 +94,7 @@ export async function selectPlan(ws: Workspace, opts: SelectOptions): Promise<Pl
       debug(`judge scored ${Object.keys(judge.scores).length} specs`);
     } catch (e) {
       debug(`judge failed: ${(e as Error).name}`);
-      judge = {
-        error: e instanceof Error && /^judge-/.test(e.message) ? e.message : 'judge-error',
-      };
+      judge = { error: judgeErrorCode(e) };
     }
   }
   const plan = buildPlan({

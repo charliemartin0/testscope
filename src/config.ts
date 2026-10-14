@@ -161,14 +161,16 @@ export function resolveConfig(input: unknown): TestscopeConfig {
   else {
     keys(
       judge,
-      ['type', 'url', 'apiKeyEnv', 'model', 'command', 'threshold', 'timeoutMs', 'cache'],
+      ['type', 'preset', 'url', 'apiKeyEnv', 'model', 'command', 'threshold', 'timeoutMs', 'cache'],
       'judge',
       issues,
     );
     const type = judge.type ?? 'none';
     if (!['none', 'http', 'command'].includes(String(type)))
       issues.push('judge.type must be none, http or command');
-    if (type === 'http') {
+    if (judge.preset !== undefined && !['generic', 'jev'].includes(String(judge.preset)))
+      issues.push('judge.preset must be generic or jev');
+    if (type === 'http' && !(judge.preset === 'jev' && judge.url === undefined)) {
       try {
         const u = new URL(String(judge.url));
         if (u.protocol !== 'https:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1')

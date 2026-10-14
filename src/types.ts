@@ -15,6 +15,8 @@ export interface RunnerConfig {
 
 export interface JudgeConfig {
   type: 'none' | 'http' | 'command';
+  /** Request/response contract for http judges. */
+  preset?: 'generic' | 'jev';
   url?: string;
   /** Name of the environment variable holding the API key. Never the key itself. */
   apiKeyEnv?: string;
