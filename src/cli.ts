@@ -9,6 +9,7 @@ import { CONFIG_FILE, ConfigError, loadConfig } from './config.ts';
 import { createDebug, debugEnabled } from './debug.ts';
 import { explainPlan } from './explain.ts';
 import { repoRoot, resolveCommit } from './git.ts';
+import { syncManifest } from './manifest.ts';
 import { type PlanFile, readPlanFile, serializePlan } from './plan-file.ts';
 import { executionGroups } from './plan.ts';
 import { PlaywrightRunner, validateExtraArgs } from './runners/playwright.ts';
@@ -18,6 +19,7 @@ const HELP = `testscope <command> [options]
 Commands:
   select   Compute a plan for the current change
   run      Compute (or load with --plan) a plan and execute it
+  manifest [--check]  Regenerate (or verify) the spec manifest
   explain [SPEC]  Explain the plan, or why SPEC is or is not selected
   check-config
 
@@ -42,6 +44,7 @@ const OPTIONS = {
   plan: { type: 'string' },
   'require-trimmed': { type: 'boolean' },
   debug: { type: 'boolean' },
+  check: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -92,6 +95,13 @@ export async function main(
     if (cmd === 'check-config') {
       stdout.write('testscope config OK\n');
       return 0;
+    }
+    if (cmd === 'manifest') {
+      const root = path.resolve(path.dirname(path.resolve(values.config)), config.root);
+      const ok = await syncManifest(root, config.manifest, values.check);
+      stdout.write(ok ? `testscope: manifest ${values.check ? 'is up to date' : 'written'}\n` : '');
+      if (!ok) process.stderr.write('testscope: manifest is stale; run testscope manifest\n');
+      return ok ? 0 : 1;
     }
     if (cmd !== 'select' && cmd !== 'run' && cmd !== 'explain') {
       process.stderr.write(`testscope ${cmd}: unknown or not yet implemented command\n`);

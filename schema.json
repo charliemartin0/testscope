@@ -74,6 +74,56 @@
         "path": {
           "$ref": "#/$defs/relPath",
           "default": "testscope.manifest.json"
+        },
+        "specs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["**/*.spec.{ts,tsx,js,mjs}"],
+          "description": "Globs (relative to root) of spec files."
+        },
+        "routePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["\\.goto\\(\\s*['\"`]([^'\"`$]+)"],
+          "description": "Regexes; capture group 1 is a route the spec visits."
+        },
+        "titlePattern": {
+          "type": "string",
+          "default": "describe(?:\\.\\w+)*\\(\\s*['\"`]([^'\"`]+)",
+          "description": "Regex; capture group 1 is the spec title."
+        },
+        "smokeTag": {
+          "type": "string",
+          "default": "@smoke"
+        },
+        "groupPattern": {
+          "type": "string",
+          "description": "Regex on the spec path; capture group 1 becomes the group."
+        },
+        "sourceRules": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["match", "sources"],
+            "properties": {
+              "match": {
+                "type": "string"
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "description": "Derive source globs from spec paths; $1.. are capture groups of match."
         }
       }
     },
