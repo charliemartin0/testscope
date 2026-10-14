@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { realpathSync } from 'node:fs';
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { applyPolicyFlags } from './commands/policy.ts';
 import { isFullSuite, openWorkspace, selectPlan } from './commands/select.ts';
 import { CONFIG_FILE, ConfigError, loadConfig } from './config.ts';
 import { createDebug, debugEnabled } from './debug.ts';
@@ -15,6 +16,14 @@ import { syncManifest } from './manifest.ts';
 import { type PlanFile, readPlanFile, serializePlan } from './plan-file.ts';
 import { executionGroups } from './plan.ts';
 import { PlaywrightRunner, validateExtraArgs } from './runners/playwright.ts';
+import {
+  appendHistory,
+  failedSpecs,
+  formatShadow,
+  readHistory,
+  shadowResult,
+  summarize,
+} from './shadow.ts';
 
 const HELP = `testscope <command> [options]
 
@@ -22,6 +31,7 @@ Commands:
   select   Compute a plan for the current change
   run      Compute (or load with --plan) a plan and execute it
   manifest [--check]  Regenerate (or verify) the spec manifest
+  shadow   Compare --plan with a full run's --report; --summary prints the miss rate
   explain [SPEC]  Explain the plan, or why SPEC is or is not selected
   check-config
 
@@ -33,6 +43,11 @@ Options:
   --out PATH           Write the plan JSON to PATH
   --plan PATH          (run) execute a saved plan
   --require-trimmed    Never select the full suite (downgrade to smoke)
+  --on-unmapped P | --on-judge-error P | --on-all-selected P   Policy overrides (smoke|all|manifest|fail)
+  --max-specs N        Budget cap override
+  --report PATH        (shadow) Playwright JSON report or {"failed": [...]} of a full run
+  --history PATH       (shadow) JSONL history (default .testscope-cache/shadow.jsonl)
+  --summary            (shadow) print the aggregated shadow report
   --debug              Log each phase to stderr (also TESTSCOPE_DEBUG=1)
   -- <flags>           (run) execution flags passed to the runner, e.g. -- --repeat-each=3
 `;
@@ -47,6 +62,13 @@ const OPTIONS = {
   'require-trimmed': { type: 'boolean' },
   debug: { type: 'boolean' },
   check: { type: 'boolean' },
+  'on-unmapped': { type: 'string' },
+  'on-judge-error': { type: 'string' },
+  'on-all-selected': { type: 'string' },
+  'max-specs': { type: 'string' },
+  report: { type: 'string' },
+  history: { type: 'string', default: '.testscope-cache/shadow.jsonl' },
+  summary: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -93,7 +115,7 @@ export async function main(
     return 0;
   }
   try {
-    const config = await loadConfig(values.config);
+    const config = applyPolicyFlags(await loadConfig(values.config), values);
     if (cmd === 'check-config') {
       stdout.write('testscope config OK\n');
       return 0;
@@ -104,6 +126,32 @@ export async function main(
       stdout.write(ok ? `testscope: manifest ${values.check ? 'is up to date' : 'written'}\n` : '');
       if (!ok) process.stderr.write('testscope: manifest is stale; run testscope manifest\n');
       return ok ? 0 : 1;
+    }
+    if (cmd === 'shadow') {
+      if (values.summary) {
+        const results = await readHistory(values.history);
+        stdout.write(
+          values.json
+            ? `${JSON.stringify(summarize(results), null, 2)}\n`
+            : formatShadow(summarize(results), results),
+        );
+        return 0;
+      }
+      if (!values.plan || !values.report)
+        throw new Error('shadow needs --plan and --report (or --summary)');
+      const root = path.resolve(path.dirname(path.resolve(values.config)), config.root);
+      const plan = JSON.parse(await readFile(values.plan, 'utf8')) as PlanFile;
+      const result = shadowResult(
+        plan,
+        failedSpecs(JSON.parse(await readFile(values.report, 'utf8')), root),
+      );
+      await appendHistory(values.history, result);
+      stdout.write(
+        values.json
+          ? `${JSON.stringify(result, null, 2)}\n`
+          : `testscope shadow: ${result.failed.length} failing, ${result.missed.length} missed\n`,
+      );
+      return 0;
     }
     if (cmd !== 'select' && cmd !== 'run' && cmd !== 'explain') {
       process.stderr.write(`testscope ${cmd}: unknown or not yet implemented command\n`);

@@ -51,3 +51,6 @@ export {
   keyEnvFor,
   PRESETS,
 } from './judges/index.ts';
+export { applyPolicyFlags } from './commands/policy.ts';
+export { failedSpecs, formatShadow, readHistory, shadowResult, summarize } from './shadow.ts';
+export type { ShadowResult, ShadowSummary } from './shadow.ts';
