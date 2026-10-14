@@ -8,25 +8,47 @@
     "relPath": {
       "type": "string",
       "minLength": 1,
-      "not": { "pattern": "(^/|^[A-Za-z]:|(^|[\\\\/])\\.\\.([\\\\/]|$))" }
+      "not": {
+        "pattern": "(^/|^[A-Za-z]:|(^|[\\\\/])\\.\\.([\\\\/]|$))"
+      }
     },
-    "envName": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-    "policy": { "enum": ["smoke", "all", "manifest", "fail"] },
-    "globs": { "type": "array", "items": { "type": "string" } }
+    "envName": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "policy": {
+      "enum": ["smoke", "all", "manifest", "fail"]
+    },
+    "globs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "root": {
       "$ref": "#/$defs/relPath",
       "default": ".",
-      "description": "Package directory containing the tests, relative to the repository root."
+      "description": "Directory containing the tests, relative to the config file."
     },
     "runner": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "playwright", "default": "playwright" },
-        "projects": { "type": "array", "items": { "type": "string" } },
+        "type": {
+          "const": "playwright",
+          "default": "playwright"
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "projectsEnv": {
           "$ref": "#/$defs/envName",
           "description": "Env var that receives the comma-separated groups of the selected specs."
@@ -35,19 +57,37 @@
           "type": "string",
           "description": "Grep applied to smoke-only runs, e.g. @smoke."
         },
-        "outputDir": { "$ref": "#/$defs/relPath" }
+        "outputDir": {
+          "$ref": "#/$defs/relPath"
+        },
+        "onlyChanged": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask the runner which specs depend on changed files (Playwright --only-changed)."
+        }
       }
     },
     "manifest": {
       "type": "object",
       "additionalProperties": false,
-      "properties": { "path": { "$ref": "#/$defs/relPath", "default": "testscope.manifest.json" } }
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/relPath",
+          "default": "testscope.manifest.json"
+        }
+      }
     },
     "smoke": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "specs": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "specs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
         "canary": {
           "type": "string",
           "description": "Spec that always runs (smoke-only unless directly affected)."
@@ -58,36 +98,80 @@
       "$ref": "#/$defs/globs",
       "description": "Changes here invalidate every spec (lockfiles, runner config, fixtures, .env*, OpenAPI)."
     },
-    "ignore": { "$ref": "#/$defs/globs" },
+    "ignore": {
+      "$ref": "#/$defs/globs"
+    },
     "extraDiffRoots": {
       "type": "array",
-      "items": { "$ref": "#/$defs/relPath" },
-      "description": "Directories outside root (e.g. a backend) whose changes are considered."
+      "items": {
+        "$ref": "#/$defs/relPath"
+      },
+      "description": "Repository-relative directories outside root (e.g. a backend) whose changes are considered."
     },
     "judge": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "type": { "enum": ["none", "http", "command"], "default": "none" },
-        "url": { "type": "string", "format": "uri" },
+        "type": {
+          "enum": ["none", "http", "command"],
+          "default": "none"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
         "apiKeyEnv": {
           "$ref": "#/$defs/envName",
           "description": "NAME of the env var holding the key. Never the key itself."
         },
-        "model": { "type": "string" },
-        "command": { "type": "string" },
-        "threshold": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.25 },
-        "timeoutMs": { "type": "integer", "exclusiveMinimum": 0, "default": 15000 },
-        "cache": { "type": ["boolean", "string"], "default": true }
+        "model": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.25
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 15000
+        },
+        "cache": {
+          "type": ["boolean", "string"],
+          "default": true
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "type": { "const": "http" } }, "required": ["type"] },
-          "then": { "required": ["url"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "http"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["url"]
+          }
         },
         {
-          "if": { "properties": { "type": { "const": "command" } }, "required": ["type"] },
-          "then": { "required": ["command"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "command"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["command"]
+          }
         }
       ]
     },
@@ -95,12 +179,28 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "onJudgeError": { "$ref": "#/$defs/policy", "default": "smoke" },
-        "onAllSelected": { "$ref": "#/$defs/policy", "default": "all" },
-        "onUnmapped": { "$ref": "#/$defs/policy", "default": "smoke" },
-        "maxSpecs": { "type": "integer", "minimum": 1 }
+        "onJudgeError": {
+          "$ref": "#/$defs/policy",
+          "default": "smoke"
+        },
+        "onAllSelected": {
+          "$ref": "#/$defs/policy",
+          "default": "all"
+        },
+        "onUnmapped": {
+          "$ref": "#/$defs/policy",
+          "default": "smoke"
+        },
+        "maxSpecs": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
-    "workers": { "type": "integer", "minimum": 1, "default": 2 }
+    "workers": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 2
+    }
   }
 }

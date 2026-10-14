@@ -24,3 +24,8 @@ export {
   workingTreeChanges,
 } from './git.ts';
 export type { DiffResult, ReadDiffOptions } from './git.ts';
+export { PLAN_VERSION, readPlanFile, serializePlan, toPlanFile } from './plan-file.ts';
+export type { PlanFile } from './plan-file.ts';
+export { buildInvocations, PlaywrightRunner, reportSpecs } from './runners/playwright.ts';
+export { isFullSuite, openWorkspace, selectPlan } from './commands/select.ts';
+export type { SelectOptions, Workspace } from './commands/select.ts';

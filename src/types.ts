@@ -9,6 +9,8 @@ export interface RunnerConfig {
   /** Grep expression applied when only smoke tests should run (e.g. "@smoke"). */
   smokeGrep?: string;
   outputDir?: string;
+  /** Ask the runner which specs import changed files (Playwright --only-changed). */
+  onlyChanged: boolean;
 }
 
 export interface JudgeConfig {
