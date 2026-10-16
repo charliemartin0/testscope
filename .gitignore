@@ -1,0 +1,3 @@
+node_modules
+.testscope-cache
+*.log

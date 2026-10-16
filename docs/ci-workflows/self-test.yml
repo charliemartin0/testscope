@@ -1,0 +1,93 @@
+name: self-test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    env:
+      JEV_KEY_PRESENT: ${{ secrets.TYPESAFE_API_KEY != '' && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: testscope
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build the fixture repo in the workspace root
+        run: bash testscope/scripts/make-fixture.sh "$GITHUB_WORKSPACE"
+      - name: Install vitest in the fixture
+        working-directory: web
+        run: npm i --no-save --no-package-lock vitest@3
+
+      - name: Run without a key (fallback full)
+        id: nokey
+        uses: ./testscope
+        with:
+          typesafe-api-key: ''
+          suites: vitest,dotnet
+          base-ref: HEAD~1
+          vitest-working-directory: web
+          dotnet-working-directory: svc
+      - name: Assert fail-safe full fallback
+        env:
+          VITEST_MODE: ${{ steps.nokey.outputs.vitest-mode }}
+          VITEST_REASON: ${{ steps.nokey.outputs.vitest-reason }}
+          DOTNET_MODE: ${{ steps.nokey.outputs.dotnet-mode }}
+          DOTNET_REASON: ${{ steps.nokey.outputs.dotnet-reason }}
+          PLAN: ${{ steps.nokey.outputs.plan-path }}
+        run: |
+          test "$VITEST_MODE" = full
+          test "$VITEST_REASON" = jev-missing-key
+          test "$DOTNET_MODE" = full
+          test "$DOTNET_REASON" = jev-missing-key
+          test -s "$PLAN"
+
+      - name: Run without a key (fallback none)
+        id: none
+        uses: ./testscope
+        with:
+          typesafe-api-key: ''
+          suites: vitest,dotnet
+          base-ref: HEAD~1
+          vitest-working-directory: web
+          dotnet-working-directory: svc
+          fallback: none
+      - name: Assert fallback none
+        env:
+          VITEST_MODE: ${{ steps.none.outputs.vitest-mode }}
+          DOTNET_MODE: ${{ steps.none.outputs.dotnet-mode }}
+        run: |
+          test "$VITEST_MODE" = none
+          test "$DOTNET_MODE" = none
+
+      - name: Run with the real Jev key
+        id: jev
+        if: env.JEV_KEY_PRESENT == 'true'
+        uses: ./testscope
+        with:
+          typesafe-api-key: ${{ secrets.TYPESAFE_API_KEY }}
+          suites: vitest,dotnet
+          base-ref: HEAD~1
+          vitest-working-directory: web
+          dotnet-working-directory: svc
+      - name: Assert Jev run is sane
+        if: env.JEV_KEY_PRESENT == 'true'
+        env:
+          VITEST_MODE: ${{ steps.jev.outputs.vitest-mode }}
+          VITEST_REASON: ${{ steps.jev.outputs.vitest-reason }}
+          VITEST_SELECTED: ${{ steps.jev.outputs.vitest-selected }}
+        run: |
+          echo "vitest: $VITEST_MODE / $VITEST_REASON / $VITEST_SELECTED"
+          case "$VITEST_REASON" in
+            jev|jev-selected-none|jev-uncertain|selected-ratio-exceeded) ;;
+            *) echo "unexpected reason: $VITEST_REASON"; exit 1 ;;
+          esac
+          if [ "$VITEST_MODE" = selected ]; then
+            if echo "$VITEST_SELECTED" | grep -q 'b.test.ts'; then echo "b.test.ts must not be selected"; exit 1; fi
+          fi

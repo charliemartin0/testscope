@@ -1,0 +1,153 @@
+name: testscope
+description: Select affected Playwright, Vitest and .NET tests with Jev, with deterministic rules and fail-safe fallbacks.
+author: charliemartin0
+
+inputs:
+  typesafe-api-key:
+    description: "Jev API key (typesafe.ai). Registered as a secret; only sent as the bearer token."
+    required: false
+    default: ""
+  base-ref:
+    description: "Diff base. Defaults to the PR base sha, else merge_group base sha, else origin/<default branch>."
+    required: false
+    default: ""
+  head-ref:
+    description: "Diff head."
+    required: false
+    default: "HEAD"
+  suites:
+    description: "Comma-separated suites to select for."
+    required: false
+    default: "playwright,vitest,dotnet"
+  playwright-working-directory:
+    description: "Playwright project directory, relative to the repo root."
+    required: false
+    default: "."
+  vitest-working-directory:
+    description: "Vitest project directory, relative to the repo root."
+    required: false
+    default: "."
+  dotnet-working-directory:
+    description: ".NET directory, relative to the repo root."
+    required: false
+    default: "."
+  playwright-manifest:
+    description: "Committed spec manifest (relative to the Playwright directory). Regenerated when missing or stale."
+    required: false
+    default: "e2e/spec-manifest.json"
+  playwright-canary:
+    description: "Spec always selected; runs smoke-only unless affected."
+    required: false
+    default: ""
+  playwright-smoke-specs:
+    description: "Multiline list of specs for the smoke fallback."
+    required: false
+    default: ""
+  playwright-env:
+    description: "Multiline KEY=VALUE env for --only-changed collection."
+    required: false
+    default: ""
+  playwright-app-env:
+    description: "Env var name that receives the comma list of apps of the selected specs."
+    required: false
+    default: ""
+  playwright-args:
+    description: "Extra arguments appended to the Playwright command."
+    required: false
+    default: ""
+  vitest-command:
+    description: "Command used to invoke vitest."
+    required: false
+    default: "npx vitest"
+  vitest-projects:
+    description: "Comma or space separated vitest projects (--project)."
+    required: false
+    default: ""
+  vitest-args:
+    description: "Extra arguments appended to `vitest run`."
+    required: false
+    default: ""
+  dotnet-test-args:
+    description: "Extra arguments appended to every `dotnet test`."
+    required: false
+    default: ""
+  dotnet-full-target:
+    description: "Target (sln/csproj) for the whole-suite dotnet command."
+    required: false
+    default: ""
+  shared-paths:
+    description: "Multiline `suite:glob` (repo-root-relative) that force the whole suite when changed."
+    required: false
+    default: ""
+  threshold:
+    description: "Select when the Jev probability is at least this value."
+    required: false
+    default: "0.25"
+  timeout-ms:
+    description: "Shared deadline for the Jev calls, in milliseconds."
+    required: false
+    default: "20000"
+  fallback:
+    description: "Whole-suite outcome on any fallback: full, smoke or none."
+    required: false
+    default: "full"
+  max-selected-ratio:
+    description: "Fall back to the whole suite when selected/total exceeds this ratio."
+    required: false
+    default: "0.6"
+  uncertain-band:
+    description: "Answers within this distance of 0.5 count as uncertain."
+    required: false
+    default: "0.1"
+  max-uncertain-ratio:
+    description: "Fall back to the whole suite when more than this share of answers is uncertain."
+    required: false
+    default: "0.3"
+  model:
+    description: "Jev model."
+    required: false
+    default: "jev-1.13.0"
+  dry-run:
+    description: "Compute and report, but output mode=full and the full command."
+    required: false
+    default: "false"
+
+outputs:
+  playwright-mode:
+    description: "playwright: none|selected|full|smoke"
+  playwright-reason:
+    description: "playwright: decision reason"
+  playwright-selected-count:
+    description: "playwright: number of selected tests"
+  playwright-selected:
+    description: "playwright: JSON array of selected tests"
+  playwright-command:
+    description: "playwright: shell command to run (eval it from the suite working directory)"
+  vitest-mode:
+    description: "vitest: none|selected|full|smoke"
+  vitest-reason:
+    description: "vitest: decision reason"
+  vitest-selected-count:
+    description: "vitest: number of selected tests"
+  vitest-selected:
+    description: "vitest: JSON array of selected tests"
+  vitest-command:
+    description: "vitest: shell command to run (eval it from the suite working directory)"
+  dotnet-mode:
+    description: "dotnet: none|selected|full|smoke"
+  dotnet-reason:
+    description: "dotnet: decision reason"
+  dotnet-selected-count:
+    description: "dotnet: number of selected tests"
+  dotnet-selected:
+    description: "dotnet: JSON array of selected tests"
+  dotnet-command:
+    description: "dotnet: shell command to run (eval it from the suite working directory)"
+  dotnet-filters:
+    description: "dotnet: JSON [{project, filter}] used by dotnet-command"
+  plan-path:
+    description: "Path of the plan JSON written by this run"
+
+runs:
+  using: node24
+  main: dist/action/index.js
