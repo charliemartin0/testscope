@@ -241,8 +241,13 @@ async function collect(ctx: SuiteContext): Promise<Collected> {
   };
 }
 
+/** One `dotnet test` per non-empty line of `dotnet-full-target` (a lone `dotnet test` when it is empty). */
 function fullCommand(ctx: SuiteContext): string {
-  return joinCommand(['dotnet test', ctx.inputs['dotnet-full-target'] ?? '', ctx.inputs['dotnet-test-args'] ?? '']);
+  const targets = (ctx.inputs['dotnet-full-target'] ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return (targets.length ? targets : ['']).map((target) => joinCommand(['dotnet test', target, ctx.inputs['dotnet-test-args'] ?? ''])).join(' && ');
 }
 
 async function truth(ctx: SuiteContext): Promise<Truth> {

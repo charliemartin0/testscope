@@ -63,7 +63,7 @@ Add more with `shared-paths` (`suite:glob` lines, repo-root-relative).
 | --- | --- | --- |
 | `typesafe-api-key` | | Jev key. Registered as a secret; only ever sent as the bearer token. |
 | `base-ref` | PR `base.sha`, else `merge_group.base_sha`, else `origin/<default branch>` | Diff base (merge-base with head). |
-| `head-ref` | `HEAD` | |
+| `head-ref` | `HEAD` | Diff head. Keep it equal to the checked-out commit: Playwright (`--only-changed`) and Vitest (`--changed`) always compare against the checked-out `HEAD`. |
 | `suites` | `playwright,vitest,dotnet` | Comma list. |
 | `playwright-working-directory`, `vitest-working-directory`, `dotnet-working-directory` | `.` | Relative to the repo root. |
 | `playwright-manifest` | `e2e/spec-manifest.json` | Committed manifest. If missing or stale it is regenerated (warning). |
@@ -76,7 +76,7 @@ Add more with `shared-paths` (`suite:glob` lines, repo-root-relative).
 | `vitest-projects` | | Comma/space list passed as `--project`. |
 | `vitest-args` | | Appended to `vitest run`. |
 | `dotnet-test-args` | | Appended to every `dotnet test`. |
-| `dotnet-full-target` | | Target for the whole-suite command (sln/csproj). |
+| `dotnet-full-target` | | Target(s) for the whole-suite command (sln/csproj). One per line: one `dotnet test` each, joined with `&&`. |
 | `shared-paths` | | Multiline `suite:glob`. |
 | `threshold` | `0.25` | Select when `p >= threshold`. |
 | `timeout-ms` | `20000` | Shared deadline for the Jev calls. |

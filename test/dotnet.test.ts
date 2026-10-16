@@ -174,6 +174,10 @@ describe('dotnetAdapter.command', () => {
     expect(dotnetAdapter.command({ mode: 'full', selected: [], reasons: {} }, withTarget, undefined).command).toBe(
       'dotnet test App.sln -c Release'
     );
+    const several = { ...withTarget, inputs: { ...withTarget.inputs, 'dotnet-full-target': 'a/A.csproj\n\n  b/B.csproj \n' } };
+    expect(dotnetAdapter.command({ mode: 'full', selected: [], reasons: {} }, several, undefined).command).toBe(
+      'dotnet test a/A.csproj -c Release && dotnet test b/B.csproj -c Release'
+    );
   });
 
   it('prefixes default shared globs with the working directory', () => {

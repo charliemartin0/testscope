@@ -72,7 +72,7 @@ inputs:
     required: false
     default: ""
   dotnet-full-target:
-    description: "Target (sln/csproj) for the whole-suite dotnet command."
+    description: "Target(s) (sln/csproj) for the whole-suite dotnet command; one per line, one dotnet test each."
     required: false
     default: ""
   shared-paths:
